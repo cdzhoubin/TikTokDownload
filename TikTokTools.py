@@ -102,6 +102,9 @@ class TikTok():
     # 判断个人主页api链接
     def judge_link(self):
         self.fill_user_sec()
+        if self.sec is None:
+            print('[  提示  ]:没有找到当前用户标识，请确认链接为用户分享地址:', self.uid)
+            return
         # 判断长短链
         #r = requests.get(url=self.Find(self.uid)[0])
         # print('[  提示  ]:为您下载多个视频!\r')
@@ -146,7 +149,7 @@ class TikTok():
         self.check_path(self.imagepath)
 
     def getnickname(self, html):
-        return html['aweme_list'][0]['author']['nickname']
+        return self.replacename(html['aweme_list'][0]['author']['nickname'])
 
     def downpageinfo(self, max_cursor, isfirst):
         api_post_url = self.createurl(max_cursor, isfirst)
@@ -414,13 +417,16 @@ class TikTok():
             print(error)
             print('[  提示  ]:该页视频资源没有', self.count, '个,已为您跳过！\r')
 
+    def replacename(self, name):
+        return re.sub(r'[\\/:*?"<>|\r\n]+', "_", name)
+
     def downloadvideofile(self, video, creat_time, filename, nickname, vurl):
         uri_url = 'https://aweme.snssdk.com/aweme/v1/play/?video_id=%s&radio=1080p&line=0'
         try:
             content_size = int(video.headers['content-length'])  # 下载文件总大小
             print('[  ' + '视频' + '  ]:' + creat_time + filename + '[文件 大小]:{size:.2f} MB'.format(
                 size=content_size / 1024 / 1024))  # 开始下载，显示下载文件大小
-            v_url = self.createfilename(creat_time, re.sub(r'[\\/:*?"<>|\r\n] + ', "_", filename),
+            v_url = self.createfilename(creat_time, self.replacename(filename),
                                         '.mp4')
             v_url = os.path.join(self.videopath, v_url)
             t_video = self.downloadfile(uri_url % vurl, 3)
@@ -437,6 +443,8 @@ class TikTok():
             print('[  警告  ]:', error, '\r')
 
     def downloadmusic(self, filename, nickname, creat_time, js):
+        if not ("music" in js['item_list'][0]):
+            return
         try:
             if self.musicarg == "yes":  # 保留音频
                 music_url = str(js['item_list'][0]['music']['play_url']['url_list'][0])
