@@ -447,7 +447,10 @@ class TikTok():
             return
         try:
             if self.musicarg == "yes":  # 保留音频
-                music_url = str(js['item_list'][0]['music']['play_url']['url_list'][0])
+                music_url_list = js['item_list'][0]['music']['play_url']['url_list'];
+                if len(music_url_list) == 0:
+                    return
+                music_url = str(music_url_list[0])
                 music_title = re.sub(r'[\\/:*?"<>|\r\n] + ', "_", filename) #str(js['item_list'][0]['music']['author'])
                 music = requests.get(music_url)  # 保存音频
                 if music.status_code == 200:  # 判断是否响应成功
