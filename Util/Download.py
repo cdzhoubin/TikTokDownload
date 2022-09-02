@@ -11,10 +11,12 @@
 -------------------------------------------------
 Change Log  :
 2022/08/11 22:02:49 : Init
+2022/08/30 00:30:09 : Add ImageDownload()
 -------------------------------------------------
 '''
 
 import Util
+
 
 class Download():
 
@@ -27,7 +29,7 @@ class Download():
         self.new_video_list = []
         self.uri_url = 'https://aweme.snssdk.com/aweme/v1/play/?video_id=%s&radio=1080p&line=0'
         self.music = profileData.music
-        self.headers = profileData.headers
+        self.headers = Util.headers
         self.mode = profileData.mode
         self.author_list = profileData.author_list
         self.video_list = profileData.video_list
@@ -73,7 +75,7 @@ class Download():
 
             # 检查视频下载情况
             file_state = self.check.test(
-                self.path, creat_time, self.author_list[i])
+                self.path, creat_time, self.author_list[i],".mp4")
             if file_state == True:
                 print('[  提示  ]: %s%s [文件已存在，为您跳过]' %
                         (creat_time, self.author_list[i]), end="")
@@ -178,6 +180,54 @@ class Download():
                 print('[  ❌  ]:%s\r' % e)
                 print('[  提示  ]:该页视频资源没有35个,已为您跳过！\r')
                 break
+
+    def ImageDownload(self, datas):
+        self.check = Util.CheckInfo()
+
+        for i in range(len(datas)):
+            self.nickname = datas[i][0]
+            self.desc = Util.replaceT(datas[i][1])
+            self.create_time = Util.time.strftime(
+                '%Y-%m-%d %H.%M.%S', Util.time.localtime(datas[i][2]))
+            self.position = datas[i][3]
+            self.number = datas[i][4]
+            self.images = datas[i][5]
+            self.sprit = Util.sprit
+
+            path = "Download" + self.sprit + "pic" + self.sprit + \
+                self.nickname + self.sprit + self.create_time + self.desc
+            # 检测下载目录是否存在
+            if not Util.os.path.exists(path):
+                Util.os.makedirs(path)
+
+            for i in range(self.number):
+                # 图片目录
+                p_url = 'Download' + self.sprit + 'pic' + self.sprit + self.nickname + self.sprit + \
+                        self.create_time + self.desc + self.sprit + \
+                            self.create_time + self.desc + \
+                        '_' + str(i) + '.jpeg'
+                # 检查图片下载情况
+                if Util.os.path.exists(p_url):
+                    print('[  提示  ]: %s%s [文件已存在，为您跳过]' %
+                            (self.create_time, self.create_time + self.desc + '_' + str(i) + '.jpeg'), end="")
+                    Util.log.info('[  提示  ]:%s[文件已存在，为您跳过]' % self.create_time + self.desc + '_' + str(i) + '.jpeg')
+                    print('\r')
+                    continue
+                else:
+                    print('\r')
+                    pass
+
+                # 尝试下载图片
+                try:
+                    picture = Util.requests.get(
+                        url=self.images[i], headers=Util.headers)
+                    with open(p_url, 'wb') as file:
+                        file.write(picture.content)
+                        print('[  提示  ]: %s%s_%s.jpeg下载完毕!\r' %
+                                (self.create_time, self.desc, str(i+1)))
+                except Exception as error:
+                    print('[  错误  ]:%s\r' % error)
+                    print('[  提示  ]:发生了点意外!\r')
 
 if __name__ == '__main__':
     Download()

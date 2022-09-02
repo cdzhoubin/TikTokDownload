@@ -24,22 +24,9 @@ class Profile():
         # 第一次访问页码
         self.max_cursor = 0
         # 全局IOS头部
-        self.headers = {
-            'user-agent': 'Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Mobile Safari/537.36 Edg/87.0.664.66'
-        }
+        self.headers = Util.headers
 
-        if (Util.platform.system() == 'Windows'):
-            self.sprit = '\\'
-            # 💻
-            print('[   💻   ]:Windows平台')
-        elif (Util.platform.system() == 'Linux'):
-            self.sprit = '/'
-            # 🐧
-            print('[   🐧   ]:Linux平台')
-        else:
-            self.sprit = '/'
-            # 🍎
-            print('[   🍎   ]:MacOS平台')
+        self.sprit = Util.sprit
 
         # 输出日志
         Util.log.info(Util.platform.system())
@@ -56,28 +43,6 @@ class Profile():
         result = Util.re.findall(
             'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', strurl)
         return result
-
-    def replaceT(self, obj):
-        """替换文案非法字符
-
-        Args:
-            obj (_type_): 传入对象
-
-        Returns:
-            new: 处理后的内容
-        """
-        # '/ \ : * ? " < > |'
-        reSub = r"[\/\\\:\*\?\"\<\>\|]"
-        new = []
-        if type(obj) == list:
-            for i in obj:
-                # 替换为下划线
-                retest = Util.re.sub(reSub, "_", i)
-                new.append(retest)
-        elif type(obj) == str:
-            # 替换为下划线
-            new = Util.re.sub(reSub, "_", obj)
-        return new
 
     def getProfile(self, param):
         """判断个人主页api链接
@@ -100,8 +65,12 @@ class Profile():
 
         # 获取用户sec_uid
         # 2022/08/24: 直接采用request里的path_url，用user\/([\d\D]*)([?])过滤出sec
-        for one in Util.re.finditer(r'user\/([\d\D]*)([?])', str(r.request.path_url)):
-            self.sec = one.group(1)
+        if '?' in r.request.path_url:
+            for one in Util.re.finditer(r'user\/([\d\D]*)([?])', str(r.request.path_url)):
+                self.sec = one.group(1)
+        else:
+            for one in Util.re.finditer(r'user\/([\d\D]*)', str(r.request.path_url)):
+                self.sec = one.group(1)
 
         print('[  提示  ]:用户的sec_id=%s\r' % self.sec)
 
@@ -230,22 +199,28 @@ class Profile():
         self.aweme_id = []
         # 唯一视频标识
         self.uri_list = []
+        # 图集
+        self.image_list = []
         # 封面大图
         # self.dynamic_cover = []
         for v in range(len(result)):
             try:
-                self.author_list.append(str(result[v]['desc']))
-                # 2022/04/22
-                # 如果直接从 /web/api/v2/aweme/post 这个接口拿数据，那么只有720p的清晰度
-                # 如果在 /web/api/v2/aweme/iteminfo/ 这个接口拿视频uri
-                # 拼接到 aweme.snssdk.com/aweme/v1/play/?video_id=xxxx&radio=1080p 则获取到1080p清晰的
-                self.video_list.append(
-                    str(result[v]['video']['play_addr']['url_list'][0]))
-                self.uri_list.append(
-                    str(result[v]['video']['play_addr']['uri']))
-                self.aweme_id.append(str(result[v]['aweme_id']))
-                # nickname.append(str(result[v]['author']['nickname']))
-                # self.dynamic_cover.append(str(result[v]['video']['dynamic_cover']['url_list'][0]))
+                # url_list < 4 说明是图集
+                if len(result[v]['video']['play_addr']['url_list']) < 4:
+                    self.image_list.append(result[v]['aweme_id'])
+                else:
+                    self.author_list.append(str(result[v]['desc']))
+                    # 2022/04/22
+                    # 如果直接从 /web/api/v2/aweme/post 这个接口拿数据，那么只有720p的清晰度
+                    # 如果在 /web/api/v2/aweme/iteminfo/ 这个接口拿视频uri
+                    # 拼接到 aweme.snssdk.com/aweme/v1/play/?video_id=xxxx&radio=1080p 则获取到1080p清晰的
+                    self.video_list.append(
+                        str(result[v]['video']['play_addr']['url_list'][0]))
+                    self.uri_list.append(
+                        str(result[v]['video']['play_addr']['uri']))
+                    self.aweme_id.append(str(result[v]['aweme_id']))
+                    # nickname.append(str(result[v]['author']['nickname']))
+                    # self.dynamic_cover.append(str(result[v]['video']['dynamic_cover']['url_list'][0]))
             except Exception as e:
                 # 输出日志
                 Util.log.info('%s,因为每次不一定完全返回35条数据！' % (e))
@@ -255,16 +230,18 @@ class Profile():
             return
         # 过滤视频文案和作者名中的非法字符
         print('[  提示  ]:等待替换文案非法字符!\r')
-        self.author_list = self.replaceT(self.author_list)
+        self.author_list = Util.replaceT(self.author_list)
         # 输出日志
         Util.log.info('[  提示  ]:等待替换文案非法字符!')
 
         print('[  提示  ]:等待替换作者非法字符!\r')
-        self.nickname = self.replaceT(self.nickname)
+        self.nickname = Util.replaceT(self.nickname)
         # 输出日志
         Util.log.info('[  提示  ]:等待替换作者非法字符!')
-
+        # 下载主页所有图集
+        datas = Util.Images().get_all_images(self.image_list)
         Util.Download().VideoDownload(self)
+        Util.Download().ImageDownload(datas)
         self.getNextData()
         return  # self,author_list,video_list,uri_list,aweme_id,nickname,max_cursor
 
